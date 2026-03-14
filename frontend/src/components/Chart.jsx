@@ -4,32 +4,30 @@ import { Line } from "react-chartjs-2";
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Filler);
 
 export default function Chart({ data, paused }) {
-  if (!data || data.length === 0) return (
-    <div style={{ textAlign: 'center', color: 'var(--text-muted)', paddingTop: '40px' }}>
-      Waiting for data...
-    </div>
-  );
+  if (!data || data.length === 0) return <div style={{textAlign:'center', padding:'20px'}}>Waiting...</div>;
 
   const formatToIST = (utcTime) => {
     if (!utcTime) return "";
     try {
       const parts = utcTime.match(/\d+/g);
-      if (!parts) return "";
       const d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], parts[3] || 0, parts[4] || 0));
-      return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+      d.setSeconds(0);
+      return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
     } catch (e) { return ""; }
   };
 
+  // Clean data for chart to prevent "back-and-forth" lines
+  const cleanChartData = data.filter((row, index, self) => 
+    index === 0 || formatToIST(row.time) !== formatToIST(self[index - 1].time)
+  );
+
   const chartData = {
-    labels: data.map(d => formatToIST(d.time || d.timestamp)),
+    labels: cleanChartData.map(d => formatToIST(d.time || d.timestamp)),
     datasets: [{
-      label: "Total Views",
-      data: data.map(d => d.views),
+      label: "Views",
+      data: cleanChartData.map(d => d.views),
       borderColor: paused ? '#f59e0b' : '#6366f1',
       backgroundColor: paused ? 'rgba(245, 158, 11, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-      borderWidth: 3,
-      pointRadius: 4,
-      pointBackgroundColor: paused ? '#f59e0b' : '#6366f1',
       fill: true,
       tension: 0.4
     }]
@@ -40,17 +38,10 @@ export default function Chart({ data, paused }) {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      tooltip: {
-        backgroundColor: '#ffffff',
-        titleColor: '#1e293b',
-        bodyColor: '#475569',
-        borderColor: '#e2e8f0',
-        borderWidth: 1,
-        callbacks: { title: (ctx) => ctx[0].label }
-      }
+      tooltip: { callbacks: { title: (ctx) => ctx[0].label } }
     },
     scales: {
-      x: { ticks: { display: false }, grid: { display: false } },
+      x: { ticks: { display: false } },
       y: { ticks: { callback: (v) => v.toLocaleString() } }
     }
   };

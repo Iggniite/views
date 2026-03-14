@@ -6,19 +6,18 @@ export default function Table({ data }) {
   const formatToIST = (utcTime) => {
     if (!utcTime) return "---";
     try {
-      // Extract numbers: [Year, Month, Day, Hour, Min, Sec]
-      const parts = utcTime.match(/\d+/g); 
+      const parts = utcTime.match(/\d+/g);
       if (!parts || parts.length < 3) return utcTime;
 
-      // Construct Date using UTC components to force consistency
-      const d = new Date(Date.UTC(
-        parts[0], 
-        parts[1] - 1, 
-        parts[2], 
-        parts[3] || 0, 
-        parts[4] || 0, 
-        parts[5] || 0
+      // Create date from UTC parts
+      let d = new Date(Date.UTC(
+        parts[0], parts[1] - 1, parts[2],
+        parts[3] || 0, parts[4] || 0, parts[5] || 0
       ));
+
+      // STRICT ALIGNMENT: Force 00 seconds
+      d.setSeconds(0);
+      d.setMilliseconds(0);
 
       return d.toLocaleTimeString('en-IN', {
         hour: 'numeric',
@@ -31,6 +30,13 @@ export default function Table({ data }) {
     }
   };
 
+  // Filter out duplicate minutes so the list is clean
+  const cleanHistory = [...data]
+    .reverse()
+    .filter((row, index, self) => 
+      index === 0 || formatToIST(row.time) !== formatToIST(self[index - 1].time)
+    );
+
   return (
     <div style={{ overflowX: 'auto', height: '100%', overflowY: 'auto', borderRadius: '8px' }}>
       <table className="custom-table">
@@ -42,7 +48,7 @@ export default function Table({ data }) {
           </tr>
         </thead>
         <tbody>
-          {[...data].reverse().map((r, i) => (
+          {cleanHistory.map((r, i) => (
             <tr key={i}>
               <td>{formatToIST(r.time || r.timestamp)}</td>
               <td>{Number(r.views).toLocaleString()}</td>
