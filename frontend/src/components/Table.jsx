@@ -1,13 +1,22 @@
-import React from 'react';
+import React from "react";
 
 export default function Table({ data }) {
   if (!data || data.length === 0) return null;
 
-  const formatToIST = (utcTime) => {
-    if (!utcTime) return "---";
+  const formatToIST = (time) => {
+    if (!time) return "---";
 
     try {
-      const d = new Date(utcTime);
+      let d;
+
+      // if timestamp number
+      if (!isNaN(time)) {
+        d = new Date(Number(time) < 1e12 ? Number(time) * 1000 : Number(time));
+      } else {
+        d = new Date(time);
+      }
+
+      if (isNaN(d.getTime())) return "---";
 
       return d.toLocaleTimeString("en-IN", {
         timeZone: "Asia/Kolkata",
@@ -16,16 +25,15 @@ export default function Table({ data }) {
         second: "2-digit",
         hour12: true,
       });
-
-    } catch (e) {
+    } catch {
       return "---";
     }
   };
 
   return (
-    <div style={{ overflowX: 'auto', height: '100%', overflowY: 'auto', borderRadius: '8px' }}>
+    <div style={{ overflowX: "auto", height: "100%", overflowY: "auto", borderRadius: "8px" }}>
       <table className="custom-table">
-        <thead style={{ position: 'sticky', top: 0, background: 'var(--card-bg)', zIndex: 1 }}>
+        <thead style={{ position: "sticky", top: 0, background: "var(--card-bg)", zIndex: 1 }}>
           <tr>
             <th>Time (IST)</th>
             <th>Views</th>
@@ -40,13 +48,12 @@ export default function Table({ data }) {
 
               <td>{r.views.toLocaleString()}</td>
 
-              <td style={{ color: r.count > 0 ? 'var(--success)' : 'inherit' }}>
-                {r.count > 0 ? `+${r.count.toLocaleString()}` : '0'}
+              <td style={{ color: r.count > 0 ? "var(--success)" : "inherit" }}>
+                {r.count > 0 ? `+${r.count.toLocaleString()}` : "0"}
               </td>
             </tr>
           ))}
         </tbody>
-
       </table>
     </div>
   );
