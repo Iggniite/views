@@ -6,41 +6,39 @@ export default function Table({ data }) {
   const formatToIST = (utcTime) => {
     if (!utcTime) return "---";
     try {
-      const parts = utcTime.match(/\d+/g);
-      if (!parts || parts.length < 3) return utcTime;
+      // Manual Extraction: Works even if the browser is 'broken'
+      const p = utcTime.match(/\d+/g);
+      if (!p || p.length < 3) return utcTime;
 
-      // Create date from UTC parts
-      let d = new Date(Date.UTC(
-        parts[0], parts[1] - 1, parts[2],
-        parts[3] || 0, parts[4] || 0, parts[5] || 0
-      ));
+      // Force create date and manually add 5 hours 30 mins for India
+      const d = new Date(Date.UTC(p[0], p[1]-1, p[2], p[3]||0, p[4]||0, p[5]||0));
+      d.setMinutes(d.getMinutes() + 330); 
 
-      // STRICT ALIGNMENT: Force 00 seconds
-      d.setSeconds(0);
-      d.setMilliseconds(0);
+      let hh = d.getHours();
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ampm = hh >= 12 ? 'PM' : 'AM';
+      hh = hh % 12 || 12;
 
-      return d.toLocaleTimeString('en-IN', {
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      });
+      // This forces the "10:00:00 PM" format you want
+      return `${hh}:${mm}:00 ${ampm}`;
     } catch (e) {
       return "---";
     }
   };
 
-  // Filter out duplicate minutes so the list is clean
-  const cleanHistory = [...data]
-    .reverse()
-    .filter((row, index, self) => 
-      index === 0 || formatToIST(row.time) !== formatToIST(self[index - 1].time)
-    );
+  // Filter to remove duplicates within the same minute
+  const seen = new Set();
+  const cleanData = [...data].reverse().filter(r => {
+    const time = formatToIST(r.time);
+    if (seen.has(time)) return false;
+    seen.add(time);
+    return true;
+  });
 
   return (
-    <div style={{ overflowX: 'auto', height: '100%', overflowY: 'auto', borderRadius: '8px' }}>
+    <div style={{ overflowX: 'auto', height: '100%', overflowY: 'auto' }}>
       <table className="custom-table">
-        <thead style={{ position: 'sticky', top: 0, background: 'white', zIndex: 1 }}>
+        <thead style={{ position: 'sticky', top: 0, background: 'white' }}>
           <tr>
             <th>Time (IST)</th>
             <th>Views</th>
@@ -48,11 +46,11 @@ export default function Table({ data }) {
           </tr>
         </thead>
         <tbody>
-          {cleanHistory.map((r, i) => (
+          {cleanData.map((r, i) => (
             <tr key={i}>
-              <td>{formatToIST(r.time || r.timestamp)}</td>
+              <td style={{ fontWeight: 'bold' }}>{formatToIST(r.time)}</td>
               <td>{Number(r.views).toLocaleString()}</td>
-              <td style={{ color: r.count > 0 ? '#10b981' : 'inherit', fontWeight: 'bold' }}>
+              <td style={{ color: r.count > 0 ? '#10b981' : '#64748b' }}>
                 {r.count > 0 ? `+${r.count.toLocaleString()}` : '0'}
               </td>
             </tr>
