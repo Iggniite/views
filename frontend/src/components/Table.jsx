@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 export default function Table({ data }) {
   if (!data || data.length === 0) return null;
@@ -7,31 +7,27 @@ export default function Table({ data }) {
     if (!utcTime) return "---";
 
     try {
-      const t = new Date(utcTime).getTime();
+      const d = new Date(utcTime);
 
-      // Round down to minute
-      const rounded = Math.floor(t / 60000) * 60000;
+      const ist = new Date(
+        d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+      );
 
-      const d = new Date(rounded);
+      const hh = String(ist.getHours()).padStart(2, "0");
+      const mm = String(ist.getMinutes()).padStart(2, "0");
 
-      return d.toLocaleTimeString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      });
+      return `${hh}:${mm}:00`;
 
-    } catch (e) {
+    } catch {
       return "---";
     }
   };
 
   return (
-    <div style={{ overflowX: 'auto', height: '100%', overflowY: 'auto', borderRadius: '8px' }}>
+    <div style={{ overflowX: "auto", height: "100%", overflowY: "auto", borderRadius: "8px" }}>
       <table className="custom-table">
 
-        <thead style={{ position: 'sticky', top: 0, background: 'var(--card-bg)', zIndex: 1 }}>
+        <thead style={{ position: "sticky", top: 0, background: "var(--card-bg)", zIndex: 1 }}>
           <tr>
             <th>Time (IST)</th>
             <th>Views</th>
@@ -47,8 +43,8 @@ export default function Table({ data }) {
 
               <td>{r.views.toLocaleString()}</td>
 
-              <td style={{ color: r.count > 0 ? 'var(--success)' : 'inherit' }}>
-                {r.count > 0 ? `+${r.count.toLocaleString()}` : '0'}
+              <td style={{ color: r.count > 0 ? "var(--success)" : "inherit" }}>
+                {r.count > 0 ? `+${r.count.toLocaleString()}` : "0"}
               </td>
 
             </tr>

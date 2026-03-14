@@ -10,33 +10,30 @@ export default function Chart({ data, paused }) {
 
   const formatToIST = (utcTime) => {
     try {
-      const t = new Date(utcTime).getTime();
+      const d = new Date(utcTime);
 
-      // Round down to minute
-      const rounded = Math.floor(t / 60000) * 60000;
+      const ist = new Date(
+        d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+      );
 
-      const d = new Date(rounded);
+      const hh = String(ist.getHours()).padStart(2, "0");
+      const mm = String(ist.getMinutes()).padStart(2, "0");
 
-      return d.toLocaleTimeString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
+      return `${hh}:${mm}`;
 
-    } catch (e) {
+    } catch {
       return "";
     }
   };
 
   const chartData = {
-    labels: data.map(d => formatToIST(d.time)),
+    labels: data.map((d) => formatToIST(d.time)),
 
     datasets: [{
       label: "Views",
       data: data.map(d => d.views),
-      borderColor: paused ? '#f59e0b' : '#6366f1',
-      backgroundColor: paused ? 'rgba(245, 158, 11, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+      borderColor: paused ? "#f59e0b" : "#6366f1",
+      backgroundColor: paused ? "rgba(245,158,11,0.1)" : "rgba(99,102,241,0.1)",
       fill: true,
       tension: 0.4
     }]
