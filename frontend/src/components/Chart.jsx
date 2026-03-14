@@ -10,13 +10,18 @@ export default function Chart({ data, paused }) {
 
   const formatToIST = (utcTime) => {
     try {
-      const d = new Date(utcTime);
+      const t = new Date(utcTime).getTime();
+
+      // Round down to minute
+      const rounded = Math.floor(t / 60000) * 60000;
+
+      const d = new Date(rounded);
 
       return d.toLocaleTimeString('en-IN', {
         timeZone: 'Asia/Kolkata',
-        hour: 'numeric',
+        hour: '2-digit',
         minute: '2-digit',
-        hour12: true
+        hour12: false
       });
 
     } catch (e) {
