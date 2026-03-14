@@ -1,57 +1,30 @@
-import { useEffect, useState, useCallback } from "react";
-import { addVideo, getVideos, getViews } from "./api"; 
+import { useEffect, useState } from "react";
+import { addVideo, getVideos, getViews } from "./api";
 import { socket } from "./socket";
 import VideoCard from "./components/VideoCard";
-import "./index.css"; // Fixed: Using your actual CSS file
 
 export default function App() {
   const [url, setUrl] = useState("");
   const [videos, setVideos] = useState([]);
   const [data, setData] = useState({});
-  const [timeLeft, setTimeLeft] = useState(60);
+  
+  // Use state for isAdmin so the UI updates immediately after login
   const [isAdmin, setIsAdmin] = useState(!!localStorage.getItem("admin_secret"));
 
-  // --- IST TIME FORMATTING (Manual Offset Fix) ---
-  const formatToIST = (utcTime) => {
-    if (!utcTime) return "---";
-    try {
-      const t = utcTime.split(/[- :T.Z]/);
-      const d = new Date(Date.UTC(t[0], t[1] - 1, t[2], t[3], t[4], t[5]));
-      return d.toLocaleTimeString("en-IN", {
-        hour: "numeric",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      });
-    } catch (e) {
-      return utcTime;
+  async function loadVideos() {
+    const res = await getVideos();
+    setVideos(res.data);
+    for (const v of res.data) {
+      const d = await getViews(v.videoId);
+      setData(prev => ({ ...prev, [v.videoId]: d.data }));
     }
-  };
+  }
 
-  // --- DATA FETCHING ---
-  const loadVideos = useCallback(async () => {
-    try {
-      const res = await getVideos();
-      setVideos(res.data);
-      for (const v of res.data) {
-        const d = await getViews(v.videoId);
-        setData(prev => ({ ...prev, [v.videoId]: d.data }));
-      }
-    } catch (err) {
-      console.error("Error loading videos:", err);
-    }
-  }, []);
-
-  // --- EFFECTS ---
   useEffect(() => {
     loadVideos();
 
-    // 60-second ticking timer logic
-    const countdown = setInterval(() => {
-      setTimeLeft((prev) => (prev <= 1 ? 60 : prev - 1));
-    }, 1000);
-
-    // Hidden Shortcut: Alt + L to login
+    // HIDDEN SHORTCUT: Alt + L to login
+    // No visual clue exists on the screen anymore.
     const handleKeyDown = (e) => {
       if (e.altKey && e.key.toLowerCase() === 'l') {
         const password = prompt("Enter Admin Password:");
@@ -65,25 +38,20 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
 
-    // Socket listener for real-time updates
     function handleUpdate(update) {
       setData(prev => ({
         ...prev,
         [update.videoId]: [...(prev[update.videoId] || []), update]
-      }));
-      setTimeLeft(60); // Reset timer when update hits
+      }))
     }
-    
     socket.on("viewUpdate", handleUpdate);
     
     return () => {
-      clearInterval(countdown);
       window.removeEventListener("keydown", handleKeyDown);
       socket.off("viewUpdate", handleUpdate);
     };
-  }, [loadVideos]);
+  }, []);
 
-  // --- ACTIONS ---
   async function track(e) {
     if (e) e.preventDefault();
     if (!url.trim()) return;
@@ -102,20 +70,8 @@ export default function App() {
         <h1>YouTube View Tracker</h1>
         <p style={{ color: 'var(--text-muted)' }}>Monitor real-time view growth natively via API.</p>
         
-        {/* Countdown Timer Badge */}
-        <div style={{ 
-          marginTop: '15px', 
-          fontSize: '0.85rem', 
-          background: 'rgba(99, 102, 241, 0.1)', 
-          display: 'inline-block', 
-          padding: '6px 14px', 
-          borderRadius: '50px',
-          color: '#6366f1',
-          fontWeight: 'bold',
-          border: '1px solid rgba(99, 102, 241, 0.2)'
-        }}>
-          ⏱ Next Refresh: {timeLeft}s
-        </div>
+        {/* CLUE REMOVED: The <small> tag is gone. 
+            Only you know that Alt+L works. */}
       </div>
 
       {isAdmin && (
@@ -130,7 +86,7 @@ export default function App() {
             type="button" 
             onClick={() => { localStorage.removeItem("admin_secret"); window.location.reload(); }} 
             className="btn-sm" 
-            style={{marginLeft: '10px', background: '#ccc', border: 'none', cursor: 'pointer', borderRadius: '4px', padding: '5px 10px'}}
+            style={{marginLeft: '10px', background: '#ccc'}}
           >
             Logout
           </button>
