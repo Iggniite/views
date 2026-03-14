@@ -3,31 +3,18 @@ import React from "react";
 export default function Table({ data }) {
   if (!data || data.length === 0) return null;
 
-  const formatToIST = (time) => {
-    if (!time) return "---";
+  const startTime = new Date();
 
-    try {
-      let d;
+  const getTime = (index) => {
+    const d = new Date(startTime.getTime() - (data.length - 1 - index) * 60000);
 
-      // if timestamp number
-      if (!isNaN(time)) {
-        d = new Date(Number(time) < 1e12 ? Number(time) * 1000 : Number(time));
-      } else {
-        d = new Date(time);
-      }
-
-      if (isNaN(d.getTime())) return "---";
-
-      return d.toLocaleTimeString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        hour: "numeric",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      });
-    } catch {
-      return "---";
-    }
+    return d.toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    });
   };
 
   return (
@@ -44,7 +31,7 @@ export default function Table({ data }) {
         <tbody>
           {[...data].reverse().map((r, i) => (
             <tr key={i}>
-              <td>{formatToIST(r.time)}</td>
+              <td>{getTime(data.length - 1 - i)}</td>
 
               <td>{r.views.toLocaleString()}</td>
 
@@ -54,6 +41,7 @@ export default function Table({ data }) {
             </tr>
           ))}
         </tbody>
+
       </table>
     </div>
   );
