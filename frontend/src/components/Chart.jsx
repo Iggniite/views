@@ -4,18 +4,29 @@ import { Line } from "react-chartjs-2";
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Filler);
 
 export default function Chart({ data, paused }) {
-  if (!data || data.length === 0) return <div className="loading">Waiting for data...</div>;
+
+  if (!data || data.length === 0)
+    return <div className="loading">Waiting for data...</div>;
 
   const formatToIST = (utcTime) => {
     try {
-      const t = utcTime.split(/[- :T.Z]/);
-      const d = new Date(Date.UTC(t[0], t[1] - 1, t[2], t[3], t[4], t[5]));
-      return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
-    } catch (e) { return ""; }
+      const d = new Date(utcTime);
+
+      return d.toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+      });
+
+    } catch (e) {
+      return "";
+    }
   };
 
   const chartData = {
     labels: data.map(d => formatToIST(d.time)),
+
     datasets: [{
       label: "Views",
       data: data.map(d => d.views),
@@ -29,15 +40,27 @@ export default function Chart({ data, paused }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+
     plugins: {
       legend: { display: false },
+
       tooltip: {
-        callbacks: { title: (ctx) => ctx[0].label }
+        callbacks: {
+          title: (ctx) => ctx[0].label
+        }
       }
     },
+
     scales: {
-      x: { ticks: { display: false } },
-      y: { ticks: { callback: (v) => v.toLocaleString() } }
+      x: {
+        ticks: { display: false }
+      },
+
+      y: {
+        ticks: {
+          callback: (v) => v.toLocaleString()
+        }
+      }
     }
   };
 
