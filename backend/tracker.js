@@ -22,8 +22,14 @@ export function startTracker(io) {
             // Format time accurately to the exact minute ignoring ms execution drift
             const now = new Date();
             now.setSeconds(0, 0);
-            const time = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
-
+              const time = now.toLocaleTimeString("en-IN", {
+                timeZone: "Asia/Kolkata",
+                hour: "numeric",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true
+              });
+              
             db.run(
               "INSERT INTO views(videoId,time,views,count) VALUES(?,?,?,?)",
               [videoId, time, data.views, count]
