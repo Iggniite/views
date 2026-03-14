@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { addVideo, getVideos, getViews } from "./api"; // Using your existing API helper
+import { addVideo, getVideos, getViews } from "./api"; 
 import { socket } from "./socket";
 import VideoCard from "./components/VideoCard";
-import "./App.css";
+import "./index.css"; // Fixed: Using your actual CSS file
 
 export default function App() {
   const [url, setUrl] = useState("");
@@ -11,12 +11,10 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(60);
   const [isAdmin, setIsAdmin] = useState(!!localStorage.getItem("admin_secret"));
 
-  // --- HELPER: IST TIME FORMATTING ---
-  // This fix ensures NO "Invalid Date" or "Processing" errors.
+  // --- IST TIME FORMATTING (Manual Offset Fix) ---
   const formatToIST = (utcTime) => {
     if (!utcTime) return "---";
     try {
-      // Manual parse to handle SQLite string variety
       const t = utcTime.split(/[- :T.Z]/);
       const d = new Date(Date.UTC(t[0], t[1] - 1, t[2], t[3], t[4], t[5]));
       return d.toLocaleTimeString("en-IN", {
@@ -73,7 +71,7 @@ export default function App() {
         ...prev,
         [update.videoId]: [...(prev[update.videoId] || []), update]
       }));
-      setTimeLeft(60); // Reset timer when update is received
+      setTimeLeft(60); // Reset timer when update hits
     }
     
     socket.on("viewUpdate", handleUpdate);
@@ -94,15 +92,9 @@ export default function App() {
       setUrl("");
       loadVideos();
     } catch (err) {
-      alert("Unauthorized action or invalid URL.");
+      alert("Unauthorized action.");
     }
   }
-
-  const handleLogout = () => {
-    localStorage.removeItem("admin_secret");
-    setIsAdmin(false);
-    window.location.reload();
-  };
 
   return (
     <div className="dashboard-container">
@@ -110,57 +102,51 @@ export default function App() {
         <h1>YouTube View Tracker</h1>
         <p style={{ color: 'var(--text-muted)' }}>Monitor real-time view growth natively via API.</p>
         
-        {/* The Ticking Timer */}
+        {/* Countdown Timer Badge */}
         <div style={{ 
-          marginTop: '10px', 
-          fontSize: '0.9rem', 
+          marginTop: '15px', 
+          fontSize: '0.85rem', 
           background: 'rgba(99, 102, 241, 0.1)', 
           display: 'inline-block', 
-          padding: '5px 15px', 
-          borderRadius: '20px',
+          padding: '6px 14px', 
+          borderRadius: '50px',
           color: '#6366f1',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          border: '1px solid rgba(99, 102, 241, 0.2)'
         }}>
-          Next API Check: {timeLeft}s
+          ⏱ Next Refresh: {timeLeft}s
         </div>
       </div>
 
       {isAdmin && (
-        <form className="input-group" onSubmit={track} style={{ marginTop: '20px' }}>
+        <form className="input-group" onSubmit={track}>
           <input
             value={url}
             placeholder="Paste YouTube URL..."
             onChange={(e) => setUrl(e.target.value)}
-            style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ddd', width: '300px' }}
           />
-          <button type="submit" className="btn-primary" style={{ marginLeft: '10px' }}>Track Video</button>
+          <button type="submit" className="btn-primary">Track Video</button>
           <button 
             type="button" 
-            onClick={handleLogout} 
+            onClick={() => { localStorage.removeItem("admin_secret"); window.location.reload(); }} 
             className="btn-sm" 
-            style={{marginLeft: '10px', background: '#eee', border: 'none', padding: '10px', borderRadius: '5px', cursor: 'pointer'}}
+            style={{marginLeft: '10px', background: '#ccc', border: 'none', cursor: 'pointer', borderRadius: '4px', padding: '5px 10px'}}
           >
             Logout
           </button>
         </form>
       )}
 
-      <div className="video-grid" style={{ marginTop: '30px' }}>
-        {videos.length === 0 ? (
-          <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No videos tracked yet.</p>
-        ) : (
-          videos.map(v => (
-            <VideoCard
-              key={v.videoId}
-              video={v}
-              data={data[v.videoId] || []}
-              refresh={loadVideos}
-              isAdmin={isAdmin}
-              // formatToIST helper passed down if needed by card
-              formatToIST={formatToIST} 
-            />
-          ))
-        )}
+      <div className="video-grid">
+        {videos.map(v => (
+          <VideoCard
+            key={v.videoId}
+            video={v}
+            data={data[v.videoId] || []}
+            refresh={loadVideos}
+            isAdmin={isAdmin}
+          />
+        ))}
       </div>
     </div>
   );
