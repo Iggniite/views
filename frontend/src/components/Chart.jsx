@@ -7,7 +7,6 @@ import {
   Tooltip,
   Filler
 } from "chart.js";
-
 import { Line } from "react-chartjs-2";
 
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement, Tooltip, Filler);
@@ -19,22 +18,26 @@ export default function Chart({ data, paused }) {
     </div>
   );
 
-  // Helper to convert UTC time to IST for chart labels and tooltips
   const formatToIST = (utcTime) => {
+    if (!utcTime) return "";
     try {
-      return new Date(utcTime).toLocaleTimeString('en-IN', {
+      const isoString = utcTime.includes('T') ? utcTime : utcTime.replace(' ', 'T');
+      const normalizedTime = isoString.endsWith('Z') ? isoString : `${isoString}Z`;
+      const date = new Date(normalizedTime);
+      
+      if (isNaN(date.getTime())) return "";
+
+      return date.toLocaleTimeString('en-IN', {
         hour: 'numeric',
         minute: '2-digit',
-        second: '2-digit',
         hour12: true,
       });
     } catch (e) {
-      return utcTime;
+      return "";
     }
   };
 
   const chartData = {
-    // We map the labels through our IST formatter
     labels: data.map(d => formatToIST(d.time)),
     datasets: [{
       label: "Total Views",
@@ -62,7 +65,6 @@ export default function Chart({ data, paused }) {
         bodyColor: '#475569',
         borderColor: '#e2e8f0',
         borderWidth: 1,
-        // This ensures the tooltip title uses our formatted IST time
         callbacks: {
           title: (context) => context[0].label
         }
@@ -71,13 +73,13 @@ export default function Chart({ data, paused }) {
     scales: {
       x: {
         grid: { color: '#f1f5f9' },
-        ticks: { display: false } // Kept hidden for a cleaner look
+        ticks: { display: false }
       },
       y: {
         grid: { color: '#f1f5f9' },
         ticks: { 
           color: '#64748b',
-          callback: (value) => value.toLocaleString() // Adds commas to Y-axis numbers
+          callback: (value) => value.toLocaleString() 
         }
       }
     }
