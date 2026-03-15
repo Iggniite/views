@@ -4,36 +4,71 @@ import { socket } from "./socket";
 import VideoCard from "./components/VideoCard";
 
 export default function App() {
+
   const [url, setUrl] = useState("");
   const [videos, setVideos] = useState([]);
   const [data, setData] = useState({});
-  
-  // Use state for isAdmin so the UI updates immediately after login
-  const [isAdmin, setIsAdmin] = useState(!!localStorage.getItem("admin_secret"));
+  const [isAdmin, setIsAdmin] = useState(false);
 
   async function loadVideos() {
     const res = await getVideos();
     setVideos(res.data);
+
     for (const v of res.data) {
       const d = await getViews(v.videoId);
       setData(prev => ({ ...prev, [v.videoId]: d.data }));
     }
   }
 
+  async function verifyAdmin(password) {
+    try {
+
+      const res = await fetch("/verify-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ password })
+      });
+
+      if (res.ok) {
+        localStorage.setItem("admin_secret", password);
+        setIsAdmin(true);
+      } else {
+        alert("Wrong password");
+        localStorage.removeItem("admin_secret");
+        setIsAdmin(false);
+      }
+
+    } catch (err) {
+      alert("Server error verifying admin.");
+    }
+  }
+
   useEffect(() => {
+
     loadVideos();
 
-    // HIDDEN SHORTCUT: Alt + L to login
-    // No visual clue exists on the screen anymore.
+    // Check stored password with server
+    const stored = localStorage.getItem("admin_secret");
+
+    if (stored) {
+      verifyAdmin(stored);
+    }
+
+    // ALT + L shortcut
     const handleKeyDown = (e) => {
-      if (e.altKey && e.key.toLowerCase() === 'l') {
+
+      if (e.altKey && e.key.toLowerCase() === "l") {
+
         const password = prompt("Enter Admin Password:");
+
         if (password) {
-          localStorage.setItem("admin_secret", password);
-          setIsAdmin(true);
-          window.location.reload();
+          verifyAdmin(password);
         }
+
       }
+
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -42,19 +77,23 @@ export default function App() {
       setData(prev => ({
         ...prev,
         [update.videoId]: [...(prev[update.videoId] || []), update]
-      }))
+      }));
     }
+
     socket.on("viewUpdate", handleUpdate);
-    
+
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       socket.off("viewUpdate", handleUpdate);
     };
+
   }, []);
 
   async function track(e) {
+
     if (e) e.preventDefault();
     if (!url.trim()) return;
+
     try {
       await addVideo(url);
       setUrl("");
@@ -62,38 +101,49 @@ export default function App() {
     } catch (err) {
       alert("Unauthorized action.");
     }
+
   }
 
   return (
     <div className="dashboard-container">
+
       <div className="header">
         <h1>YouTube View Tracker</h1>
-        <p style={{ color: 'var(--text-muted)' }}>Monitor real-time view growth natively via API.</p>
-        
-        {/* CLUE REMOVED: The <small> tag is gone. 
-            Only you know that Alt+L works. */}
+        <p style={{ color: 'var(--text-muted)' }}>
+          Monitor real-time view growth natively via API.
+        </p>
       </div>
 
       {isAdmin && (
         <form className="input-group" onSubmit={track}>
+
           <input
             value={url}
             placeholder="Paste YouTube URL..."
             onChange={(e) => setUrl(e.target.value)}
           />
-          <button type="submit" className="btn-primary">Track Video</button>
-          <button 
-            type="button" 
-            onClick={() => { localStorage.removeItem("admin_secret"); window.location.reload(); }} 
-            className="btn-sm" 
-            style={{marginLeft: '10px', background: '#ccc'}}
+
+          <button type="submit" className="btn-primary">
+            Track Video
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem("admin_secret");
+              setIsAdmin(false);
+            }}
+            className="btn-sm"
+            style={{ marginLeft: '10px', background: '#ccc' }}
           >
             Logout
           </button>
+
         </form>
       )}
 
       <div className="video-grid">
+
         {videos.map(v => (
           <VideoCard
             key={v.videoId}
@@ -103,7 +153,10 @@ export default function App() {
             isAdmin={isAdmin}
           />
         ))}
+
       </div>
+
     </div>
   );
+
 }
