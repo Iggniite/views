@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { addVideo, getVideos, getViews } from "./api";
 import { socket } from "./socket";
 import VideoCard from "./components/VideoCard";
@@ -8,10 +8,12 @@ export default function App() {
   const [videos, setVideos] = useState([]);
   const [data, setData] = useState({});
   
+  // Initialize from storage
   const [isAdmin, setIsAdmin] = useState(!!localStorage.getItem("admin_secret"));
 
-  async function loadVideos() {
+  const loadVideos = useCallback(async () => {
     try {
+      // getVideos will use the secret from localStorage automatically inside api.js
       const res = await getVideos();
       setVideos(res.data);
       for (const v of res.data) {
@@ -19,37 +21,40 @@ export default function App() {
         setData(prev => ({ ...prev, [v.videoId]: d.data }));
       }
     } catch (err) {
-      // If our stored token is invalid, log out
+      // If the saved token is wrong/expired, log out automatically
       if (err.response && (err.response.status === 401 || err.response.status === 403)) {
         localStorage.removeItem("admin_secret");
         setIsAdmin(false);
       }
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadVideos();
 
     const handleKeyDown = async (e) => {
+      // Trigger on Alt + L
       if (e.altKey && e.key.toLowerCase() === 'l') {
         const password = prompt("Enter Admin Password:");
         if (!password) return;
 
         try {
-          // SECURE FIX: We attempt to call getVideos with the new password.
-          // If the password is wrong, getVideos() will throw an error (401/403).
+          // 1. Temporarily store to test the request
           localStorage.setItem("admin_secret", password); 
+          
+          // 2. Try to fetch videos. If password is wrong, this THROWS an error
           const check = await getVideos();
           
           if (check.status === 200) {
+            // 3. ONLY if successful, update the UI state
             setIsAdmin(true);
             alert("Access Granted");
             window.location.reload();
           }
         } catch (err) {
-          // WRONG PASSWORD: Clear storage and keep buttons hidden
-          localStorage.removeItem("admin_secret");
-          setIsAdmin(false);
+          // 4. If wrong password (401/403), the code jumps here
+          localStorage.removeItem("admin_secret"); // Wipe the wrong password
+          setIsAdmin(false); // Keep buttons hidden
           alert("Wrong Password. Access Denied.");
         }
       }
@@ -69,7 +74,7 @@ export default function App() {
       window.removeEventListener("keydown", handleKeyDown);
       socket.off("viewUpdate", handleUpdate);
     };
-  }, []);
+  }, [loadVideos]);
 
   async function track(e) {
     if (e) e.preventDefault();
@@ -90,6 +95,7 @@ export default function App() {
         <p style={{ color: 'var(--text-muted)' }}>Monitor real-time view growth natively via API.</p>
       </div>
 
+      {/* Buttons ONLY appear if isAdmin is strictly true */}
       {isAdmin && (
         <form className="input-group" onSubmit={track}>
           <input
@@ -102,7 +108,7 @@ export default function App() {
             type="button" 
             onClick={() => { localStorage.removeItem("admin_secret"); window.location.reload(); }} 
             className="btn-sm" 
-            style={{marginLeft: '10px', background: '#ccc'}}
+            style={{marginLeft: '10px', background: '#ccc', cursor: 'pointer', border: 'none', padding: '5px 10px', borderRadius: '4px'}}
           >
             Logout
           </button>
