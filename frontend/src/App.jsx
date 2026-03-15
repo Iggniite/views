@@ -12,12 +12,14 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(!!localStorage.getItem("admin_secret"));
 
   async function loadVideos() {
-    const res = await getVideos();
+   const res = await getVideos();
     setVideos(res.data);
+    const newData = {};
     for (const v of res.data) {
       const d = await getViews(v.videoId);
-      setData(prev => ({ ...prev, [v.videoId]: d.data }));
-    }
+      newData[v.videoId] = d.data;
+    }    
+    setData(newData);
   }
 
   useEffect(() => {
