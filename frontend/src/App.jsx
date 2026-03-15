@@ -8,30 +8,49 @@ export default function App() {
   const [videos, setVideos] = useState([]);
   const [data, setData] = useState({});
   
-  // Use state for isAdmin so the UI updates immediately after login
   const [isAdmin, setIsAdmin] = useState(!!localStorage.getItem("admin_secret"));
 
   async function loadVideos() {
-    const res = await getVideos();
-    setVideos(res.data);
-    for (const v of res.data) {
-      const d = await getViews(v.videoId);
-      setData(prev => ({ ...prev, [v.videoId]: d.data }));
+    try {
+      const res = await getVideos();
+      setVideos(res.data);
+      for (const v of res.data) {
+        const d = await getViews(v.videoId);
+        setData(prev => ({ ...prev, [v.videoId]: d.data }));
+      }
+    } catch (err) {
+      // If our stored token is invalid, log out
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        localStorage.removeItem("admin_secret");
+        setIsAdmin(false);
+      }
     }
   }
 
   useEffect(() => {
     loadVideos();
 
-    // HIDDEN SHORTCUT: Alt + L to login
-    // No visual clue exists on the screen anymore.
-    const handleKeyDown = (e) => {
+    const handleKeyDown = async (e) => {
       if (e.altKey && e.key.toLowerCase() === 'l') {
         const password = prompt("Enter Admin Password:");
-        if (password) {
-          localStorage.setItem("admin_secret", password);
-          setIsAdmin(true);
-          window.location.reload();
+        if (!password) return;
+
+        try {
+          // SECURE FIX: We attempt to call getVideos with the new password.
+          // If the password is wrong, getVideos() will throw an error (401/403).
+          localStorage.setItem("admin_secret", password); 
+          const check = await getVideos();
+          
+          if (check.status === 200) {
+            setIsAdmin(true);
+            alert("Access Granted");
+            window.location.reload();
+          }
+        } catch (err) {
+          // WRONG PASSWORD: Clear storage and keep buttons hidden
+          localStorage.removeItem("admin_secret");
+          setIsAdmin(false);
+          alert("Wrong Password. Access Denied.");
         }
       }
     };
@@ -69,9 +88,6 @@ export default function App() {
       <div className="header">
         <h1>YouTube View Tracker</h1>
         <p style={{ color: 'var(--text-muted)' }}>Monitor real-time view growth natively via API.</p>
-        
-        {/* CLUE REMOVED: The <small> tag is gone. 
-            Only you know that Alt+L works. */}
       </div>
 
       {isAdmin && (
