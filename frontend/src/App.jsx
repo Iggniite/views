@@ -25,18 +25,18 @@ export default function App() {
   useEffect(() => {
     loadVideos();
 
-    // HIDDEN SHORTCUT: Alt + L to login
-    // No visual clue exists on the screen anymore.
-    const handleKeyDown = (e) => {
-      if (e.altKey && e.key.toLowerCase() === 'l') {
-        const password = prompt("Enter Admin Password:");
-        if (password) {
-          localStorage.setItem("admin_secret", password);
-          setIsAdmin(true);
-          window.location.reload();
-        }
-      }
-    };
+     const handleKeyDown = (e) => {
+       if (
+    (e.ctrlKey || e.metaKey) && 
+         e.shiftKey &&
+         e.key.toLowerCase() === "l"
+       ) {
+         const password = prompt("Enter Admin Password:");
+         if (password) {
+           verifyAdmin(password);
+         }
+       }
+     };
 
     window.addEventListener("keydown", handleKeyDown);
 
