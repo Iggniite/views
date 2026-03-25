@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 const BASE_URL = "https://youtube-view-pq0x.onrender.com";
 
 export default function Proof({ video, isAdmin }) {
+
+  const [url, setUrl] = useState("");
   const [time, setTime] = useState("");
   const [proofs, setProofs] = useState([]);
 
@@ -19,9 +21,20 @@ export default function Proof({ video, isAdmin }) {
     loadProofs();
   }, [video.videoId]);
 
+  // ✅ Extract videoId from URL
+  function extractVideoId(url) {
+    const match = url.match(
+      /(?:youtube\.com.*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+    );
+    return match ? match[1] : null;
+  }
+
   // ✅ Add schedule
   async function addSchedule() {
-    if (!time) return alert("Select time");
+    if (!url || !time) return alert("Enter URL and time");
+
+    const videoId = extractVideoId(url);
+    if (!videoId) return alert("Invalid YouTube URL");
 
     const formatted = new Date(`1970-01-01T${time}`)
       .toLocaleTimeString("en-IN", {
@@ -37,12 +50,13 @@ export default function Proof({ video, isAdmin }) {
         "x-admin-secret": adminSecret
       },
       body: JSON.stringify({
-        videoId: video.videoId,
+        videoId,
         time: formatted
       })
     });
 
-    alert("Time added");
+    alert("Scheduled successfully");
+    setUrl("");
     setTime("");
   }
 
@@ -50,68 +64,118 @@ export default function Proof({ video, isAdmin }) {
   async function deleteProof(id) {
     await fetch(`${BASE_URL}/proof/${id}`, {
       method: "DELETE",
-      headers: {
-        "x-admin-secret": adminSecret
-      }
+      headers: { "x-admin-secret": adminSecret }
     });
-
     loadProofs();
   }
 
   return (
-    <div style={{ padding: "10px" }}>
+    <div style={{ maxWidth: "900px", margin: "auto" }}>
 
-      {/* ✅ ADD TIME */}
-      {isAdmin && (
-        <div style={{ marginBottom: "10px", display: "flex", gap: "10px" }}>
+      {/* 🔥 CARD */}
+      <div style={{
+        background: "white",
+        padding: "20px",
+        borderRadius: "12px",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+        marginBottom: "20px"
+      }}>
+
+        <h3>📸 Screenshot Proof</h3>
+        <p style={{ color: "#666", fontSize: "14px" }}>
+          Enter a video URL and set a time. The system will automatically capture a screenshot.
+        </p>
+
+        {/* URL INPUT */}
+        <div style={{ marginBottom: "10px" }}>
+          <label>YouTube Video URL</label>
+          <input
+            style={{ width: "100%", padding: "10px", marginTop: "5px" }}
+            placeholder="https://youtube.com/watch?v=..."
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+        </div>
+
+        {/* TIME INPUT */}
+        <div style={{ marginBottom: "10px" }}>
+          <label>Screenshot Time</label>
           <input
             type="time"
+            style={{ width: "100%", padding: "10px", marginTop: "5px" }}
             value={time}
             onChange={(e) => setTime(e.target.value)}
           />
-          <button onClick={addSchedule}>➕ Add Time</button>
         </div>
-      )}
 
-      {/* ✅ PROOF LIST */}
-      {proofs.length === 0 && <p>No proofs yet</p>}
+        {/* BUTTON */}
+        <button
+          onClick={addSchedule}
+          style={{
+            width: "100%",
+            padding: "12px",
+            background: "#6366f1",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer"
+          }}
+        >
+          Schedule Screenshot
+        </button>
+      </div>
 
-      {proofs.map(p => (
-        <div key={p.id} style={{
-          border: "1px solid #ddd",
-          padding: "10px",
-          marginBottom: "10px",
-          borderRadius: "8px"
-        }}>
-          <div><strong>{p.time}</strong></div>
-          <div>Views: {p.views.toLocaleString()}</div>
+      {/* 🔥 SAVED SCREENSHOTS */}
+      <div style={{
+        background: "white",
+        padding: "20px",
+        borderRadius: "12px",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.05)"
+      }}>
 
-          <div style={{ marginTop: "8px", display: "flex", gap: "10px" }}>
-            
-            {/* 👁 VIEW */}
-            <a
-              href={`${BASE_URL}/${p.imagePath}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <button>👁 View</button>
-            </a>
+        <h3>Saved Screenshots</h3>
 
-            {/* ⬇ DOWNLOAD */}
-            <a href={`${BASE_URL}/proof/download/${p.id}`}>
-              <button>⬇ Download</button>
-            </a>
+        {proofs.length === 0 && <p>No proofs yet</p>}
 
-            {/* 🗑 DELETE */}
-            {isAdmin && (
-              <button onClick={() => deleteProof(p.id)}>
-                🗑 Delete
-              </button>
-            )}
+        {proofs.map(p => (
+          <div key={p.id} style={{
+            padding: "12px",
+            border: "1px solid #eee",
+            borderRadius: "8px",
+            marginBottom: "10px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
+          }}>
+
+            <div>
+              <div><strong>{p.time}</strong></div>
+              <div style={{ fontSize: "13px", color: "#666" }}>
+                Views: {p.views.toLocaleString()}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "8px" }}>
+              
+              <a href={`${BASE_URL}/${p.imagePath}`} target="_blank">
+                <button>👁 View</button>
+              </a>
+
+              <a href={`${BASE_URL}/proof/download/${p.id}`}>
+                <button>⬇ Download</button>
+              </a>
+
+              {isAdmin && (
+                <button onClick={() => deleteProof(p.id)}>
+                  🗑
+                </button>
+              )}
+
+            </div>
 
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
     </div>
   );
