@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { addVideo, getVideos, getViews } from "./api";
 import { socket } from "./socket";
 import VideoCard from "./components/VideoCard";
+import Navbar from "./components/Navbar";
 
 export default function App() {
 
@@ -9,6 +10,9 @@ export default function App() {
   const [videos, setVideos] = useState([]);
   const [data, setData] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // ✅ NEW: TAB STATE
+  const [activeTab, setActiveTab] = useState("live");
 
   // ✅ LOAD VIDEOS
   async function loadVideos() {
@@ -23,7 +27,7 @@ export default function App() {
     setData(newData);
   }
 
-  // ✅ VERIFY ADMIN (FIXED)
+  // ✅ VERIFY ADMIN
   async function verifyAdmin(password) {
     try {
       const res = await fetch("https://youtube-view-pq0x.onrender.com/verify-admin", {
@@ -53,16 +57,16 @@ export default function App() {
 
     loadVideos();
 
-    // ✅ CHECK SAVED PASSWORD ON LOAD
+    // ✅ CHECK SAVED PASSWORD
     const stored = localStorage.getItem("admin_secret");
     if (stored) {
       verifyAdmin(stored);
     }
 
-    // ✅ CROSS-PLATFORM SHORTCUT
+    // ✅ SHORTCUT (Windows + Mac)
     const handleKeyDown = (e) => {
       if (
-        (e.ctrlKey || e.metaKey) && // Ctrl (Windows) / Cmd (Mac)
+        (e.ctrlKey || e.metaKey) &&
         e.shiftKey &&
         e.key.toLowerCase() === "l"
       ) {
@@ -106,6 +110,16 @@ export default function App() {
     }
   }
 
+  // ✅ FILTER LOGIC (NO CORE CHANGE)
+  const liveVideos = videos.filter(v => v.status === "active");
+  const pausedVideos = videos.filter(v => v.status === "paused");
+
+  let displayedVideos = [];
+
+  if (activeTab === "live") displayedVideos = liveVideos;
+  else if (activeTab === "paused") displayedVideos = pausedVideos;
+  else displayedVideos = []; // future tabs
+
   return (
     <div className="dashboard-container">
 
@@ -115,6 +129,9 @@ export default function App() {
           Monitor real-time view growth natively via API.
         </p>
       </div>
+
+      {/* ✅ NAVBAR */}
+      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* ✅ ADMIN SECTION */}
       {isAdmin && (
@@ -147,7 +164,7 @@ export default function App() {
 
       {/* ✅ VIDEO GRID */}
       <div className="video-grid">
-        {videos.map(v => (
+        {displayedVideos.map(v => (
           <VideoCard
             key={v.videoId}
             video={v}
