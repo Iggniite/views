@@ -10,11 +10,8 @@ export default function App() {
   const [videos, setVideos] = useState([]);
   const [data, setData] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
-
-  // ✅ NEW: TAB STATE
   const [activeTab, setActiveTab] = useState("live");
 
-  // ✅ LOAD VIDEOS
   async function loadVideos() {
     const res = await getVideos();
     setVideos(res.data);
@@ -27,7 +24,6 @@ export default function App() {
     setData(newData);
   }
 
-  // ✅ VERIFY ADMIN
   async function verifyAdmin(password) {
     try {
       const res = await fetch("https://youtube-view-pq0x.onrender.com/verify-admin", {
@@ -57,13 +53,11 @@ export default function App() {
 
     loadVideos();
 
-    // ✅ CHECK SAVED PASSWORD
     const stored = localStorage.getItem("admin_secret");
     if (stored) {
       verifyAdmin(stored);
     }
 
-    // ✅ SHORTCUT (Windows + Mac)
     const handleKeyDown = (e) => {
       if (
         (e.ctrlKey || e.metaKey) &&
@@ -79,7 +73,6 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
 
-    // ✅ SOCKET UPDATE
     function handleUpdate(update) {
       setData(prev => ({
         ...prev,
@@ -96,7 +89,6 @@ export default function App() {
 
   }, []);
 
-  // ✅ TRACK VIDEO
   async function track(e) {
     if (e) e.preventDefault();
     if (!url.trim()) return;
@@ -110,7 +102,7 @@ export default function App() {
     }
   }
 
-  // ✅ FILTER LOGIC (NO CORE CHANGE)
+  // 🔥 FILTER LOGIC (UNCHANGED CORE)
   const liveVideos = videos.filter(v => v.status === "active");
   const pausedVideos = videos.filter(v => v.status === "paused");
 
@@ -118,7 +110,7 @@ export default function App() {
 
   if (activeTab === "live") displayedVideos = liveVideos;
   else if (activeTab === "paused") displayedVideos = pausedVideos;
-  else displayedVideos = []; // future tabs
+  else displayedVideos = [];
 
   return (
     <div className="dashboard-container">
@@ -130,13 +122,8 @@ export default function App() {
         </p>
       </div>
 
-      {/* ✅ NAVBAR */}
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
-
-      {/* ✅ ADMIN SECTION */}
       {isAdmin && (
         <form className="input-group" onSubmit={track}>
-
           <input
             value={url}
             placeholder="Paste YouTube URL..."
@@ -158,11 +145,12 @@ export default function App() {
           >
             Logout
           </button>
-
         </form>
       )}
 
-      {/* ✅ VIDEO GRID */}
+      {/* 🔥 NEW NAVBAR */}
+      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+
       <div className="video-grid">
         {displayedVideos.map(v => (
           <VideoCard
