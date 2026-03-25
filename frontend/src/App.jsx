@@ -3,6 +3,7 @@ import { addVideo, getVideos, getViews } from "./api";
 import { socket } from "./socket";
 import VideoCard from "./components/VideoCard";
 import Navbar from "./components/Navbar";
+import Proof from "./components/Proof";
 
 export default function App() {
 
@@ -12,6 +13,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState("live");
 
+  // ✅ LOAD VIDEOS
   async function loadVideos() {
     const res = await getVideos();
     setVideos(res.data);
@@ -24,6 +26,7 @@ export default function App() {
     setData(newData);
   }
 
+  // ✅ VERIFY ADMIN
   async function verifyAdmin(password) {
     try {
       const res = await fetch("https://youtube-view-pq0x.onrender.com/verify-admin", {
@@ -42,7 +45,6 @@ export default function App() {
         localStorage.removeItem("admin_secret");
         setIsAdmin(false);
       }
-
     } catch (err) {
       console.error(err);
       alert("Server error");
@@ -53,11 +55,11 @@ export default function App() {
 
     loadVideos();
 
+    // ✅ AUTO LOGIN
     const stored = localStorage.getItem("admin_secret");
-    if (stored) {
-      verifyAdmin(stored);
-    }
+    if (stored) verifyAdmin(stored);
 
+    // ✅ SHORTCUT (WIN + MAC)
     const handleKeyDown = (e) => {
       if (
         (e.ctrlKey || e.metaKey) &&
@@ -65,14 +67,13 @@ export default function App() {
         e.key.toLowerCase() === "l"
       ) {
         const password = prompt("Enter Admin Password:");
-        if (password) {
-          verifyAdmin(password);
-        }
+        if (password) verifyAdmin(password);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
 
+    // ✅ SOCKET UPDATE
     function handleUpdate(update) {
       setData(prev => ({
         ...prev,
@@ -89,32 +90,32 @@ export default function App() {
 
   }, []);
 
+  // ✅ TRACK VIDEO
   async function track(e) {
-    if (e) e.preventDefault();
+    e.preventDefault();
     if (!url.trim()) return;
 
     try {
       await addVideo(url);
       setUrl("");
       loadVideos();
-    } catch (err) {
+    } catch {
       alert("Unauthorized action.");
     }
   }
 
-  // 🔥 FILTER LOGIC (UNCHANGED CORE)
+  // ✅ FILTER LOGIC
   const liveVideos = videos.filter(v => v.status === "active");
   const pausedVideos = videos.filter(v => v.status === "paused");
 
   let displayedVideos = [];
-
   if (activeTab === "live") displayedVideos = liveVideos;
   else if (activeTab === "paused") displayedVideos = pausedVideos;
-  else displayedVideos = [];
 
   return (
     <div className="dashboard-container">
 
+      {/* HEADER */}
       <div className="header">
         <h1>YouTube View Tracker</h1>
         <p style={{ color: 'var(--text-muted)' }}>
@@ -122,8 +123,10 @@ export default function App() {
         </p>
       </div>
 
+      {/* ADMIN INPUT */}
       {isAdmin && (
         <form className="input-group" onSubmit={track}>
+
           <input
             value={url}
             placeholder="Paste YouTube URL..."
@@ -134,6 +137,7 @@ export default function App() {
             Track Video
           </button>
 
+          {/* ✅ LOGOUT BUTTON (IMPORTANT) */}
           <button
             type="button"
             onClick={() => {
@@ -145,22 +149,35 @@ export default function App() {
           >
             Logout
           </button>
+
         </form>
       )}
 
-      {/* 🔥 NEW NAVBAR */}
+      {/* NAVBAR */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
+      {/* CONTENT */}
       <div className="video-grid">
-        {displayedVideos.map(v => (
-          <VideoCard
-            key={v.videoId}
-            video={v}
-            data={data[v.videoId] || []}
-            refresh={loadVideos}
-            isAdmin={isAdmin}
-          />
-        ))}
+
+        {activeTab === "proof"
+          ? videos.map(v => (
+              <Proof
+                key={v.videoId}
+                video={v}
+                isAdmin={isAdmin}
+              />
+            ))
+          : displayedVideos.map(v => (
+              <VideoCard
+                key={v.videoId}
+                video={v}
+                data={data[v.videoId] || []}
+                refresh={loadVideos}
+                isAdmin={isAdmin}
+              />
+            ))
+        }
+
       </div>
 
     </div>

@@ -6,17 +6,18 @@ import dotenv from "dotenv";
 import db from "./db.js";
 import { startTracker } from "./tracker.js";
 import { getViews } from "./youtube.js";
+import fs from "fs";
 
 dotenv.config();
 
 const app = express();
 
-// ✅ CORS FIX (IMPORTANT for Render)
-app.use(cors({
-  origin: "*"
-}));
-
+// ✅ CORS
+app.use(cors({ origin: "*" }));
 app.use(express.json());
+
+// ✅ SERVE PROOF IMAGES
+app.use("/proofs", express.static("proofs"));
 
 // --- ADMIN MIDDLEWARE ---
 const verifyAdmin = (req, res, next) => {
@@ -34,7 +35,7 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 startTracker(io);
 
-// --- HELPER FUNCTION ---
+// --- HELPER ---
 function extractVideoId(url) {
   const match = url.match(
     /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
@@ -42,7 +43,7 @@ function extractVideoId(url) {
   return match && match[1] ? match[1] : url;
 }
 
-// ✅ NEW ROUTE: VERIFY ADMIN PASSWORD
+// ✅ VERIFY ADMIN
 app.post("/verify-admin", (req, res) => {
   const { password } = req.body;
 
@@ -53,7 +54,10 @@ app.post("/verify-admin", (req, res) => {
   return res.status(401).json({ success: false });
 });
 
-// --- PUBLIC ROUTES ---
+// =======================
+// PUBLIC ROUTES
+// =======================
+
 app.get("/videos", (req, res) => {
   db.all("SELECT * FROM videos", (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -72,7 +76,10 @@ app.get("/views/:videoId", (req, res) => {
   );
 });
 
-// --- PROTECTED ROUTES ---
+// =======================
+// PROTECTED ROUTES
+// =======================
+
 app.post("/track", verifyAdmin, async (req, res) => {
   const url = req.body.url;
 
@@ -98,7 +105,6 @@ app.delete("/video/:videoId", verifyAdmin, (req, res) => {
     db.run("DELETE FROM views WHERE videoId=?", [id]);
     db.run("DELETE FROM videos WHERE videoId=?", [id], (err) => {
       if (err) return res.status(500).json({ error: "Failed to delete" });
-
       res.json({ message: "Video removed" });
     });
   });
@@ -112,7 +118,6 @@ app.put("/video/:videoId/pause", verifyAdmin, (req, res) => {
     [id],
     (err) => {
       if (err) return res.status(500).json({ error: "Failed to pause" });
-
       res.json({ message: "Video paused" });
     }
   );
@@ -126,13 +131,73 @@ app.put("/video/:videoId/resume", verifyAdmin, (req, res) => {
     [id],
     (err) => {
       if (err) return res.status(500).json({ error: "Failed to resume" });
-
       res.json({ message: "Video resumed" });
     }
   );
 });
 
-// --- START SERVER ---
+// =======================
+// 🔥 PROOF SYSTEM
+// =======================
+
+// ➕ Add schedule
+app.post("/proof-schedule", verifyAdmin, (req, res) => {
+  const { videoId, time } = req.body;
+
+  db.run(
+    "INSERT INTO proof_schedule(videoId, time) VALUES(?, ?)",
+    [videoId, time],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: "Schedule added" });
+    }
+  );
+});
+
+// 📥 Get proofs
+app.get("/proofs/:videoId", (req, res) => {
+  db.all(
+    "SELECT * FROM proofs WHERE videoId=? ORDER BY id DESC",
+    [req.params.videoId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+});
+
+// 🗑 Delete proof
+app.delete("/proof/:id", verifyAdmin, (req, res) => {
+  const id = req.params.id;
+
+  db.get("SELECT * FROM proofs WHERE id=?", [id], (err, row) => {
+    if (!row) return res.status(404).json({ error: "Not found" });
+
+    if (row.imagePath && fs.existsSync(row.imagePath)) {
+      fs.unlinkSync(row.imagePath);
+    }
+
+    db.run("DELETE FROM proofs WHERE id=?", [id], () => {
+      res.json({ message: "Deleted" });
+    });
+  });
+});
+
+// ⬇ Download
+app.get("/proof/download/:id", (req, res) => {
+  const id = req.params.id;
+
+  db.get("SELECT * FROM proofs WHERE id=?", [id], (err, row) => {
+    if (!row) return res.status(404).json({ error: "Not found" });
+
+    res.download(row.imagePath);
+  });
+});
+
+// =======================
+// START SERVER
+// =======================
+
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
