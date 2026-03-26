@@ -8,20 +8,31 @@ export default function Proof({ video, isAdmin }) {
   const [time, setTime] = useState("");
   const [proofs, setProofs] = useState([]);
 
+  // 🔥 ADDED: pending state
+  const [pending, setPending] = useState([]);
+
   const adminSecret = localStorage.getItem("admin_secret");
 
-  // ✅ Load proofs
+  // ✅ Load proofs (UNCHANGED)
   async function loadProofs() {
     const res = await fetch(`${BASE_URL}/proofs/${video.videoId}`);
     const data = await res.json();
     setProofs(data);
   }
 
+  // 🔥 ADDED: load pending schedules
+  async function loadPending() {
+    const res = await fetch(`${BASE_URL}/proof-schedule/${video.videoId}`);
+    const data = await res.json();
+    setPending(data);
+  }
+
   useEffect(() => {
     loadProofs();
+    loadPending(); // 🔥 ADDED
   }, [video.videoId]);
 
-  // ✅ Extract videoId from URL
+  // ✅ Extract videoId (UNCHANGED)
   function extractVideoId(url) {
     const match = url.match(
       /(?:youtube\.com.*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
@@ -29,7 +40,7 @@ export default function Proof({ video, isAdmin }) {
     return match ? match[1] : null;
   }
 
-  // ✅ Add schedule
+  // ✅ Add schedule (UPDATED slightly)
   async function addSchedule() {
     if (!url || !time) return alert("Enter URL and time");
 
@@ -56,11 +67,15 @@ export default function Proof({ video, isAdmin }) {
     });
 
     alert("Scheduled successfully");
+
     setUrl("");
     setTime("");
+
+    // 🔥 ADDED: refresh immediately
+    loadPending();
   }
 
-  // ✅ Delete proof
+  // ✅ Delete proof (UNCHANGED)
   async function deleteProof(id) {
     await fetch(`${BASE_URL}/proof/${id}`, {
       method: "DELETE",
@@ -135,7 +150,23 @@ export default function Proof({ video, isAdmin }) {
 
         <h3>Saved Screenshots</h3>
 
-        {proofs.length === 0 && <p>No proofs yet</p>}
+        {/* 🔥 ADDED: Pending Section */}
+        {pending.map(p => (
+          <div key={p.id} style={{
+            padding: "12px",
+            borderRadius: "8px",
+            marginBottom: "10px",
+            background: "#f1f5f9"
+          }}>
+            <div><strong>Scheduled Screenshot</strong></div>
+            <div style={{ fontSize: "13px" }}>
+              Scheduled: {p.time} • Status: <span style={{ color: "orange" }}>pending</span>
+            </div>
+          </div>
+        ))}
+
+        {/* EXISTING */}
+        {proofs.length === 0 && pending.length === 0 && <p>No proofs yet</p>}
 
         {proofs.map(p => (
           <div key={p.id} style={{

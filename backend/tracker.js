@@ -57,17 +57,24 @@ export function startTracker(io) {
 
                 for (const s of schedules) {
 
-                  // match time (ignore seconds)
-                  if (s.time === currentTime) {
+                  // ✅ FIX 1: safer time match (trim spaces)
+                  if (s.time.trim() === currentTime.trim()) {
 
                     console.log("📸 Capturing proof for", videoId, currentTime);
 
                     try {
                       const proof = await captureProof(videoId, currentTime, data.views);
 
+                      // ✅ SAVE proof
                       db.run(
                         "INSERT INTO proofs(videoId,time,views,imagePath) VALUES(?,?,?,?)",
                         [videoId, currentTime, data.views, proof.filePath]
+                      );
+
+                      // 🔥 FIX 2: DELETE schedule after capture (VERY IMPORTANT)
+                      db.run(
+                        "DELETE FROM proof_schedule WHERE id=?",
+                        [s.id]
                       );
 
                     } catch (e) {

@@ -154,7 +154,19 @@ app.post("/proof-schedule", verifyAdmin, (req, res) => {
   );
 });
 
-// 📥 Get proofs
+// 🔥 NEW: GET PENDING SCHEDULES  (YOU WERE MISSING THIS)
+app.get("/proof-schedule/:videoId", (req, res) => {
+  db.all(
+    "SELECT * FROM proof_schedule WHERE videoId=? ORDER BY id DESC",
+    [req.params.videoId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+});
+
+// 📥 Get completed proofs
 app.get("/proofs/:videoId", (req, res) => {
   db.all(
     "SELECT * FROM proofs WHERE videoId=? ORDER BY id DESC",
