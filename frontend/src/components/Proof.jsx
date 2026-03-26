@@ -4,7 +4,8 @@ const BASE_URL = "https://youtube-view-pq0x.onrender.com";
 
 export default function Proof({ video, isAdmin }) {
 
-  const [url, setUrl] = useState("");
+  // ❌ REMOVED: url state (not needed anymore)
+
   const [time, setTime] = useState("");
   const [proofs, setProofs] = useState([]);
 
@@ -13,7 +14,7 @@ export default function Proof({ video, isAdmin }) {
 
   const adminSecret = localStorage.getItem("admin_secret");
 
-  // ✅ Load proofs (UNCHANGED)
+  // ✅ Load completed proofs
   async function loadProofs() {
     const res = await fetch(`${BASE_URL}/proofs/${video.videoId}`);
     const data = await res.json();
@@ -29,23 +30,14 @@ export default function Proof({ video, isAdmin }) {
 
   useEffect(() => {
     loadProofs();
-    loadPending(); // 🔥 ADDED
+    loadPending();
   }, [video.videoId]);
 
-  // ✅ Extract videoId (UNCHANGED)
-  function extractVideoId(url) {
-    const match = url.match(
-      /(?:youtube\.com.*v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-    );
-    return match ? match[1] : null;
-  }
+  // ❌ REMOVED: extractVideoId (not needed)
 
-  // ✅ Add schedule (UPDATED slightly)
+  // ✅ UPDATED: Add schedule using EXISTING video
   async function addSchedule() {
-    if (!url || !time) return alert("Enter URL and time");
-
-    const videoId = extractVideoId(url);
-    if (!videoId) return alert("Invalid YouTube URL");
+    if (!time) return alert("Enter time");
 
     const formatted = new Date(`1970-01-01T${time}`)
       .toLocaleTimeString("en-IN", {
@@ -61,21 +53,20 @@ export default function Proof({ video, isAdmin }) {
         "x-admin-secret": adminSecret
       },
       body: JSON.stringify({
-        videoId,
+        videoId: video.videoId, // 🔥 FIXED (no mismatch now)
         time: formatted
       })
     });
 
     alert("Scheduled successfully");
 
-    setUrl("");
     setTime("");
 
-    // 🔥 ADDED: refresh immediately
+    // 🔥 Refresh instantly
     loadPending();
   }
 
-  // ✅ Delete proof (UNCHANGED)
+  // ✅ Delete proof
   async function deleteProof(id) {
     await fetch(`${BASE_URL}/proof/${id}`, {
       method: "DELETE",
@@ -87,7 +78,26 @@ export default function Proof({ video, isAdmin }) {
   return (
     <div style={{ maxWidth: "900px", margin: "auto" }}>
 
-      {/* 🔥 CARD */}
+      {/* 🔥 VIDEO CARD HEADER (ADDED FOR BETTER UX) */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        marginBottom: "15px"
+      }}>
+        {video.thumbnail && (
+          <img
+            src={video.thumbnail}
+            alt="thumb"
+            style={{ width: "80px", borderRadius: "8px" }}
+          />
+        )}
+        <div>
+          <h3 style={{ margin: 0 }}>{video.title}</h3>
+        </div>
+      </div>
+
+      {/* 🔥 SCHEDULER CARD */}
       <div style={{
         background: "white",
         padding: "20px",
@@ -98,19 +108,8 @@ export default function Proof({ video, isAdmin }) {
 
         <h3>📸 Screenshot Proof</h3>
         <p style={{ color: "#666", fontSize: "14px" }}>
-          Enter a video URL and set a time. The system will automatically capture a screenshot.
+          Select a time to capture screenshot for this video.
         </p>
-
-        {/* URL INPUT */}
-        <div style={{ marginBottom: "10px" }}>
-          <label>YouTube Video URL</label>
-          <input
-            style={{ width: "100%", padding: "10px", marginTop: "5px" }}
-            placeholder="https://youtube.com/watch?v=..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-        </div>
 
         {/* TIME INPUT */}
         <div style={{ marginBottom: "10px" }}>
@@ -140,7 +139,7 @@ export default function Proof({ video, isAdmin }) {
         </button>
       </div>
 
-      {/* 🔥 SAVED SCREENSHOTS */}
+      {/* 🔥 RESULTS */}
       <div style={{
         background: "white",
         padding: "20px",
@@ -150,7 +149,7 @@ export default function Proof({ video, isAdmin }) {
 
         <h3>Saved Screenshots</h3>
 
-        {/* 🔥 ADDED: Pending Section */}
+        {/* 🔥 PENDING */}
         {pending.map(p => (
           <div key={p.id} style={{
             padding: "12px",
@@ -160,14 +159,15 @@ export default function Proof({ video, isAdmin }) {
           }}>
             <div><strong>Scheduled Screenshot</strong></div>
             <div style={{ fontSize: "13px" }}>
-              Scheduled: {p.time} • Status: <span style={{ color: "orange" }}>pending</span>
+              {p.time} • <span style={{ color: "orange" }}>pending</span>
             </div>
           </div>
         ))}
 
-        {/* EXISTING */}
+        {/* EMPTY */}
         {proofs.length === 0 && pending.length === 0 && <p>No proofs yet</p>}
 
+        {/* COMPLETED */}
         {proofs.map(p => (
           <div key={p.id} style={{
             padding: "12px",
@@ -206,6 +206,7 @@ export default function Proof({ video, isAdmin }) {
 
           </div>
         ))}
+
       </div>
 
     </div>

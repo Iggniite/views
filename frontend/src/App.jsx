@@ -13,10 +13,17 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState("live");
 
-  // ✅ LOAD VIDEOS
+  // 🔥 NEW: selected video for proof tab
+  const [selectedVideoId, setSelectedVideoId] = useState("");
+
   async function loadVideos() {
     const res = await getVideos();
     setVideos(res.data);
+
+    // 🔥 SET DEFAULT SELECTED VIDEO
+    if (res.data.length > 0 && !selectedVideoId) {
+      setSelectedVideoId(res.data[0].videoId);
+    }
 
     const newData = {};
     for (const v of res.data) {
@@ -26,28 +33,22 @@ export default function App() {
     setData(newData);
   }
 
-  // ✅ VERIFY ADMIN
   async function verifyAdmin(password) {
-    try {
-      const res = await fetch("https://youtube-view-pq0x.onrender.com/verify-admin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ password })
-      });
+    const res = await fetch("https://youtube-view-pq0x.onrender.com/verify-admin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ password })
+    });
 
-      if (res.ok) {
-        localStorage.setItem("admin_secret", password);
-        setIsAdmin(true);
-      } else {
-        alert("Wrong password");
-        localStorage.removeItem("admin_secret");
-        setIsAdmin(false);
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Server error");
+    if (res.ok) {
+      localStorage.setItem("admin_secret", password);
+      setIsAdmin(true);
+    } else {
+      alert("Wrong password");
+      localStorage.removeItem("admin_secret");
+      setIsAdmin(false);
     }
   }
 
@@ -55,17 +56,11 @@ export default function App() {
 
     loadVideos();
 
-    // ✅ AUTO LOGIN
     const stored = localStorage.getItem("admin_secret");
     if (stored) verifyAdmin(stored);
 
-    // ✅ SHORTCUT (WIN + MAC)
     const handleKeyDown = (e) => {
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        e.key.toLowerCase() === "l"
-      ) {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "l") {
         const password = prompt("Enter Admin Password:");
         if (password) verifyAdmin(password);
       }
@@ -73,7 +68,6 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
 
-    // ✅ SOCKET UPDATE
     function handleUpdate(update) {
       setData(prev => ({
         ...prev,
@@ -90,7 +84,6 @@ export default function App() {
 
   }, []);
 
-  // ✅ TRACK VIDEO
   async function track(e) {
     e.preventDefault();
     if (!url.trim()) return;
@@ -104,7 +97,6 @@ export default function App() {
     }
   }
 
-  // ✅ FILTER LOGIC
   const liveVideos = videos.filter(v => v.status === "active");
   const pausedVideos = videos.filter(v => v.status === "paused");
 
@@ -112,73 +104,83 @@ export default function App() {
   if (activeTab === "live") displayedVideos = liveVideos;
   else if (activeTab === "paused") displayedVideos = pausedVideos;
 
+  // 🔥 FIND SELECTED VIDEO OBJECT
+  const selectedVideo = videos.find(v => v.videoId === selectedVideoId);
+
   return (
     <div className="dashboard-container">
 
-      {/* HEADER */}
       <div className="header">
         <h1>YouTube View Tracker</h1>
-        <p style={{ color: 'var(--text-muted)' }}>
-          Monitor real-time view growth natively via API.
-        </p>
       </div>
 
-      {/* ADMIN INPUT */}
       {isAdmin && (
         <form className="input-group" onSubmit={track}>
-
           <input
             value={url}
             placeholder="Paste YouTube URL..."
             onChange={(e) => setUrl(e.target.value)}
           />
+          <button type="submit">Track</button>
 
-          <button type="submit" className="btn-primary">
-            Track Video
-          </button>
-
-          {/* ✅ LOGOUT BUTTON (IMPORTANT) */}
           <button
             type="button"
             onClick={() => {
               localStorage.removeItem("admin_secret");
               setIsAdmin(false);
             }}
-            className="btn-sm"
-            style={{ marginLeft: '10px', background: '#ccc' }}
+            style={{ marginLeft: "10px" }}
           >
             Logout
           </button>
-
         </form>
       )}
 
-      {/* NAVBAR */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* CONTENT */}
-      <div className="video-grid">
+      {/* 🔥 PROOF TAB WITH DROPDOWN */}
+      {activeTab === "proof" && (
+        <div style={{ maxWidth: "900px", margin: "20px auto" }}>
 
-        {activeTab === "proof"
-          ? videos.map(v => (
-              <Proof
-                key={v.videoId}
-                video={v}
-                isAdmin={isAdmin}
-              />
-            ))
-          : displayedVideos.map(v => (
-              <VideoCard
-                key={v.videoId}
-                video={v}
-                data={data[v.videoId] || []}
-                refresh={loadVideos}
-                isAdmin={isAdmin}
-              />
-            ))
-        }
+          {/* 🔥 DROPDOWN */}
+          <select
+            value={selectedVideoId}
+            onChange={(e) => setSelectedVideoId(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "12px",
+              borderRadius: "8px",
+              marginBottom: "20px"
+            }}
+          >
+            {videos.map(v => (
+              <option key={v.videoId} value={v.videoId}>
+                {v.title}
+              </option>
+            ))}
+          </select>
 
-      </div>
+          {/* 🔥 SHOW SELECTED VIDEO ONLY */}
+          {selectedVideo && (
+            <Proof video={selectedVideo} isAdmin={isAdmin} />
+          )}
+        </div>
+      )}
+
+      {/* 🔥 OTHER TABS */}
+      {activeTab !== "proof" && (
+        <div className="video-grid">
+          {displayedVideos.map(v => (
+            <VideoCard
+              key={v.videoId}
+              video={v}
+              data={data[v.videoId] || []}
+              refresh={loadVideos}
+              isAdmin={isAdmin}
+            />
+          ))}
+        </div>
+      )}
 
     </div>
   );
