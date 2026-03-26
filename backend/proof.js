@@ -20,9 +20,9 @@ export async function captureProof(videoId, time, views) {
     const url = `https://www.youtube.com/watch?v=${videoId}`;
     console.log("🌐 Opening:", url);
 
-    await page.goto(url, { waitUntil: "domcontentloaded" });
-
-    await page.waitForSelector("body", { timeout: 20000 });
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+    await page.waitForSelector("ytd-video-primary-info-renderer", { timeout: 30000 });
+    await new Promise(r => setTimeout(r, 3000));
 
     if (!fs.existsSync("proofs")) {
       fs.mkdirSync("proofs");

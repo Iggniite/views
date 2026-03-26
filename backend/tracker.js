@@ -82,7 +82,7 @@ export function startTracker(io) {
                   const scheduledMinutes = hours * 60 + minutes;
 
                   // ✅ MATCH ±1 minute
-                  if (Math.abs(currentMinutes - scheduledMinutes) <= 1) {
+                  if (currentMinutes === scheduledMinutes){
 
                     console.log("📸 Capturing proof:", videoId, s.time);
 
