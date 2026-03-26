@@ -4,35 +4,64 @@ import path from "path";
 
 export async function captureProof(videoId, time, views) {
 
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox"]
-  });
+  try {
 
-  const page = await browser.newPage();
+    // 🔥 FIX 1: Proper Puppeteer config for Render
+    const browser = await puppeteer.launch({
+      headless: true, // ✅ safer than "new"
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu"
+      ]
+    });
 
-  const url = `https://www.youtube.com/watch?v=${videoId}`;
-  await page.goto(url, { waitUntil: "networkidle2" });
+    const page = await browser.newPage();
 
-  // wait for views element
-  await page.waitForSelector("ytd-video-view-count-renderer", { timeout: 15000 });
+    const url = `https://www.youtube.com/watch?v=${videoId}`;
+    console.log("🌐 Opening:", url);
 
-  const fileName = `${videoId}_${Date.now()}.png`;
-  const filePath = path.join("proofs", fileName);
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
-  // ensure folder exists
-  if (!fs.existsSync("proofs")) {
-    fs.mkdirSync("proofs");
+    // 🔥 FIX 2: safer wait (YouTube loads dynamically)
+    await page.waitForSelector("ytd-watch-flexy", { timeout: 20000 });
+
+    // 🔥 FIX 3: ensure folder exists
+    const folder = "proofs";
+    if (!fs.existsSync(folder)) {
+      fs.mkdirSync(folder);
+    }
+
+    const fileName = `${videoId}_${Date.now()}.png`;
+    const filePath = path.join(folder, fileName);
+
+    console.log("📸 Taking screenshot...");
+
+    // 🔥 FIX 4: viewport for better capture
+    await page.setViewport({ width: 1280, height: 800 });
+
+    await page.screenshot({
+      path: filePath,
+      fullPage: true
+    });
+
+    await browser.close();
+
+    console.log("✅ Screenshot saved:", filePath);
+
+    return {
+      filePath,
+      fileName,
+      time,
+      views
+    };
+
+  } catch (error) {
+
+    // 🔥 FIX 5: SHOW ERROR (VERY IMPORTANT)
+    console.error("❌ Puppeteer Error:", error);
+
+    throw error;
   }
-
-  await page.screenshot({ path: filePath, fullPage: true });
-
-  await browser.close();
-
-  return {
-    filePath,
-    fileName,
-    time,
-    views
-  };
 }
