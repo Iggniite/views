@@ -1,15 +1,16 @@
 import db from "./db.js";
 import { getViews } from "./youtube.js";
-import { captureProof } from "./proof.js"; // ✅ NEW
+import { captureProof } from "./proof.js";
 
 export function startTracker(io) {
 
   async function pollData() {
     db.all("SELECT videoId FROM videos WHERE status = 'active'", async (err, rows) => {
+
       for (const r of rows) {
+
         const videoId = r.videoId;
         const data = await getViews(videoId);
-
         if (!data) continue;
 
         db.get(
@@ -31,7 +32,7 @@ export function startTracker(io) {
               hour12: true
             });
 
-            // ✅ EXISTING LOGIC (UNCHANGED)
+            // ✅ ORIGINAL LOGIC (UNCHANGED)
             db.run(
               "INSERT INTO views(videoId,time,views,count) VALUES(?,?,?,?)",
               [videoId, time, data.views, count]
@@ -39,49 +40,56 @@ export function startTracker(io) {
 
             io.emit("viewUpdate", { videoId, time, views: data.views, count });
 
-            // ===========================
-            // 🔥 NEW PROOF LOGIC (SAFE ADD)
-            // ===========================
+            // =====================================
+            // 🔥 FIXED PROOF LOGIC
+            // =====================================
 
             db.all(
               "SELECT * FROM proof_schedule WHERE videoId=?",
               [videoId],
               async (err, schedules) => {
 
-                const currentTime = now.toLocaleTimeString("en-IN", {
-                  timeZone: "Asia/Kolkata",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true
-                });
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
                 for (const s of schedules) {
 
-                  // ✅ FIX 1: safer time match (trim spaces)
-                  if (s.time.trim() === currentTime.trim()) {
+                  // convert scheduled time → minutes
+                  const [timeStr, meridian] = s.time.split(" ");
+                  let [hours, minutes] = timeStr.split(":").map(Number);
 
-                    console.log("📸 Capturing proof for", videoId, currentTime);
+                  if (meridian === "PM" && hours !== 12) hours += 12;
+                  if (meridian === "AM" && hours === 12) hours = 0;
+
+                  const scheduledMinutes = hours * 60 + minutes;
+
+                  // ✅ allow ±1 minute window
+                  if (Math.abs(currentMinutes - scheduledMinutes) <= 1) {
+
+                    console.log("📸 Capturing proof:", videoId, s.time);
 
                     try {
-                      const proof = await captureProof(videoId, currentTime, data.views);
+                      const proof = await captureProof(videoId, s.time, data.views);
 
-                      // ✅ SAVE proof
+                      // ✅ SAVE
                       db.run(
                         "INSERT INTO proofs(videoId,time,views,imagePath) VALUES(?,?,?,?)",
-                        [videoId, currentTime, data.views, proof.filePath]
+                        [videoId, s.time, data.views, proof.filePath]
                       );
 
-                      // 🔥 FIX 2: DELETE schedule after capture (VERY IMPORTANT)
+                      // ✅ DELETE SCHEDULE (VERY IMPORTANT)
                       db.run(
                         "DELETE FROM proof_schedule WHERE id=?",
                         [s.id]
                       );
 
+                      console.log("✅ Proof captured");
+
                     } catch (e) {
-                      console.error("Proof capture failed:", e);
+                      console.error("❌ Proof capture failed:", e);
                     }
 
                   }
+
                 }
 
               }
@@ -90,6 +98,7 @@ export function startTracker(io) {
           }
         );
       }
+
     });
 
     scheduleNextPoll();
