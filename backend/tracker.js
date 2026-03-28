@@ -6,12 +6,14 @@ export function startTracker(io) {
 
   async function pollData() {
 
-    // ✅ Use all videos
-    db.all("SELECT videoId FROM videos", async (err, rows) => {
+    // ✅ CHANGED: fetch status also (IMPORTANT)
+    db.all("SELECT videoId, status FROM videos", async (err, rows) => {
 
       for (const r of rows) {
 
         const videoId = r.videoId;
+        const isActive = r.status === "active"; // 🔥 ADDED
+
         const data = await getViews(videoId);
         if (!data) continue;
 
@@ -24,7 +26,7 @@ export function startTracker(io) {
             const count = lastViews ? data.views - lastViews : 0;
 
             // =========================
-            // ✅ ORIGINAL TIME (FIXED BACK)
+            // ✅ ORIGINAL TIME (UNCHANGED)
             // =========================
             const now = new Date();
             now.setSeconds(0, 0);
@@ -37,87 +39,96 @@ export function startTracker(io) {
               hour12: true
             });
 
-            // ✅ SAVE VIEWS (UNCHANGED)
-            db.run(
-              "INSERT INTO views(videoId,time,views,count) VALUES(?,?,?,?)",
-              [videoId, time, data.views, count]
-            );
+            // =========================
+            // 🔥 ONLY TRACK IF ACTIVE
+            // =========================
+            if (isActive) { // 🔥 ADDED
 
-            io.emit("viewUpdate", { videoId, time, views: data.views, count });
+              db.run(
+                "INSERT INTO views(videoId,time,views,count) VALUES(?,?,?,?)",
+                [videoId, time, data.views, count]
+              );
+
+              io.emit("viewUpdate", { videoId, time, views: data.views, count });
+
+            }
 
             // =========================
-            // 🔥 PROOF SYSTEM (FIXED SAFE)
+            // 🔥 PROOF SYSTEM (ONLY ACTIVE)
             // =========================
+            if (isActive) { // 🔥 ADDED
 
-            db.all(
-              "SELECT * FROM proof_schedule WHERE videoId=?",
-              [videoId],
-              async (err, schedules) => {
+              db.all(
+                "SELECT * FROM proof_schedule WHERE videoId=?",
+                [videoId],
+                async (err, schedules) => {
 
-                // ✅ CURRENT IST TIME → MINUTES
-                const parts = now.toLocaleTimeString("en-IN", {
-                  timeZone: "Asia/Kolkata",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  hour12: true
-                }).split(" ");
+                  // ✅ CURRENT IST TIME → MINUTES
+                  const parts = now.toLocaleTimeString("en-IN", {
+                    timeZone: "Asia/Kolkata",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true
+                  }).split(" ");
 
-                const [t, meridian] = parts;
-                let [h, m] = t.split(":").map(Number);
+                  const [t, meridian] = parts;
+                  let [h, m] = t.split(":").map(Number);
 
-                if (meridian === "PM" && h !== 12) h += 12;
-                if (meridian === "AM" && h === 12) h = 0;
+                  if (meridian === "PM" && h !== 12) h += 12;
+                  if (meridian === "AM" && h === 12) h = 0;
 
-                const currentMinutes = h * 60 + m;
+                  const currentMinutes = h * 60 + m;
 
-                for (const s of schedules) {
+                  for (const s of schedules) {
 
-                  // ✅ Scheduled → minutes
-                  const [timeStr, meridian2] = s.time.split(" ");
-                  let [hours, minutes] = timeStr.split(":").map(Number);
+                    // ✅ Scheduled → minutes
+                    const [timeStr, meridian2] = s.time.split(" ");
+                    let [hours, minutes] = timeStr.split(":").map(Number);
 
-                  if (meridian2 === "PM" && hours !== 12) hours += 12;
-                  if (meridian2 === "AM" && hours === 12) hours = 0;
+                    if (meridian2 === "PM" && hours !== 12) hours += 12;
+                    if (meridian2 === "AM" && hours === 12) hours = 0;
 
-                  const scheduledMinutes = hours * 60 + minutes;
+                    const scheduledMinutes = hours * 60 + minutes;
 
-                  // ✅ MATCH ±1 minute
-                  if (currentMinutes === scheduledMinutes){
+                    // ✅ EXACT MATCH
+                    if (currentMinutes === scheduledMinutes) {
 
-                    console.log("📸 Capturing proof:", videoId, s.time);
+                      console.log("📸 Capturing proof:", videoId, s.time);
 
-                    try {
+                      try {
 
-                      const proof = await captureProof(
-                        videoId,
-                        s.time,
-                        data.views
-                      );
+                        const proof = await captureProof(
+                          videoId,
+                          s.time,
+                          data.views
+                        );
 
-                      // ✅ SAVE IMAGE
-                      db.run(
-                        "INSERT INTO proofs(videoId,time,views,imagePath) VALUES(?,?,?,?)",
-                        [videoId, s.time, data.views, proof.filePath]
-                      );
+                        // ✅ SAVE IMAGE
+                        db.run(
+                          "INSERT INTO proofs(videoId,time,views,imagePath) VALUES(?,?,?,?)",
+                          [videoId, s.time, data.views, proof.filePath]
+                        );
 
-                      // ✅ REMOVE SCHEDULE
-                      db.run(
-                        "DELETE FROM proof_schedule WHERE id=?",
-                        [s.id]
-                      );
+                        // ✅ REMOVE SCHEDULE
+                        db.run(
+                          "DELETE FROM proof_schedule WHERE id=?",
+                          [s.id]
+                        );
 
-                      console.log("✅ Proof captured");
+                        console.log("✅ Proof captured");
 
-                    } catch (e) {
-                      console.error("❌ Proof capture failed:", e);
+                      } catch (e) {
+                        console.error("❌ Proof capture failed:", e);
+                      }
+
                     }
 
                   }
 
                 }
+              );
 
-              }
-            );
+            }
 
           }
         );
