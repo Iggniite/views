@@ -65,7 +65,7 @@ input {
     max-width: 450px;
     padding: 0.7rem 1.1rem;
     border-radius: 12px;
-    border: 1px solid var(--card-border);
+    border: 2px solid #000;
     background: #ffffff;
     font-size: 0.95rem;
     outline: none;
@@ -256,6 +256,26 @@ button {
 .btn-danger { color: var(--danger); border: 1px solid var(--danger); background: white; }
 .btn-warning { color: var(--warning); border: 1px solid var(--warning); background: white; }
 .btn-success { background: var(--success); color: white; }
+
+.btn-prim {
+  background: var(--accent); /* teal */
+  color: white;
+}
+
+.btn-prim:hover {
+  background: var(--accent-hover);
+}
+
+/* 🔴 Logout button (faint red) */
+.btn-logout {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+}
+
+.btn-logout:hover {
+    background: #fecaca;
+}
 
 /* --- Table Styling --- */
 

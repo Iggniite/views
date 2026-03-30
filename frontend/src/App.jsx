@@ -121,18 +121,21 @@ export default function App() {
             placeholder="Paste YouTube URL..."
             onChange={(e) => setUrl(e.target.value)}
           />
-          <button type="submit">Track</button>
+      <button type="submit" className="btn-prim">
+          Track
+      </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              localStorage.removeItem("admin_secret");
-              setIsAdmin(false);
-            }}
-            style={{ marginLeft: "10px" }}
-          >
-            Logout
-          </button>
+         <button
+           type="button"
+           className="btn-sm btn-logout"
+           onClick={() => {
+             localStorage.removeItem("admin_secret");
+             setIsAdmin(false);
+           }}
+           style={{ marginLeft: "10px" }}
+         >
+           Logout
+         </button>
         </form>
       )}
 
