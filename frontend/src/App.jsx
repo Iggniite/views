@@ -12,15 +12,12 @@ export default function App() {
   const [data, setData] = useState({});
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState("live");
-
-  // 🔥 NEW: selected video for proof tab
   const [selectedVideoId, setSelectedVideoId] = useState("");
 
   async function loadVideos() {
     const res = await getVideos();
     setVideos(res.data);
 
-    // 🔥 SET DEFAULT SELECTED VIDEO
     if (res.data.length > 0 && !selectedVideoId) {
       setSelectedVideoId(res.data[0].videoId);
     }
@@ -104,7 +101,6 @@ export default function App() {
   if (activeTab === "live") displayedVideos = liveVideos;
   else if (activeTab === "paused") displayedVideos = pausedVideos;
 
-  // 🔥 FIND SELECTED VIDEO OBJECT
   const selectedVideo = videos.find(v => v.videoId === selectedVideoId);
 
   return (
@@ -121,31 +117,31 @@ export default function App() {
             placeholder="Paste YouTube URL..."
             onChange={(e) => setUrl(e.target.value)}
           />
-      <button type="submit" className="btn-prim">
-          Track
-      </button>
 
-         <button
-           type="button"
-           className="btn-sm btn-logout"
-           onClick={() => {
-             localStorage.removeItem("admin_secret");
-             setIsAdmin(false);
-           }}
-           style={{ marginLeft: "10px" }}
-         >
-           Logout
-         </button>
+          {/* 🔥 UPDATED: Track Button */}
+          <button type="submit" className="btn-primary">
+            🚀 Track
+          </button>
+
+          {/* 🔥 UPDATED: Logout Button */}
+          <button
+            type="button"
+            className="btn-logout"
+            onClick={() => {
+              localStorage.removeItem("admin_secret");
+              setIsAdmin(false);
+            }}
+            style={{ marginLeft: "10px" }}
+          >
+            🔓 Logout
+          </button>
         </form>
       )}
 
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* 🔥 PROOF TAB WITH DROPDOWN */}
       {activeTab === "proof" && (
         <div style={{ maxWidth: "900px", margin: "20px auto" }}>
-
-          {/* 🔥 DROPDOWN */}
           <select
             value={selectedVideoId}
             onChange={(e) => setSelectedVideoId(e.target.value)}
@@ -163,14 +159,12 @@ export default function App() {
             ))}
           </select>
 
-          {/* 🔥 SHOW SELECTED VIDEO ONLY */}
           {selectedVideo && (
             <Proof video={selectedVideo} isAdmin={isAdmin} />
           )}
         </div>
       )}
 
-      {/* 🔥 OTHER TABS */}
       {activeTab !== "proof" && (
         <div className="video-grid">
           {displayedVideos.map(v => (
