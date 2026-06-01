@@ -49,7 +49,7 @@ export async function captureProof(videoId, time, views) {
 
       await page.setViewport({
         width: 1024,
-        height: 600
+        height: 800
       });
 
       await page.screenshot({
@@ -58,7 +58,7 @@ export async function captureProof(videoId, time, views) {
           x: 0,
           y: 0,
           width: 1024,
-          height: 500
+          height: 750
         }
       });
 
