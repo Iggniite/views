@@ -17,7 +17,7 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // ✅ SERVE PROOF IMAGES
-app.use("/proofs", express.static("proofs"));
+app.use("/proofs", express.static("/etc/data/proofs"));
 
 // --- ADMIN MIDDLEWARE ---
 const verifyAdmin = (req, res, next) => {
