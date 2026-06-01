@@ -4,8 +4,6 @@ const BASE_URL = "https://youtube-view-pq0x.onrender.com";
 
 export default function Proof({ video, isAdmin }) {
 
-  // ❌ REMOVED: url state (not needed anymore)
-
   const [time, setTime] = useState("");
   const [proofs, setProofs] = useState([]);
 
@@ -32,8 +30,6 @@ export default function Proof({ video, isAdmin }) {
     loadProofs();
     loadPending();
   }, [video.videoId]);
-
-  // ❌ REMOVED: extractVideoId (not needed)
 
   // ✅ UPDATED: Add schedule using EXISTING video
   async function addSchedule() {
@@ -107,37 +103,43 @@ export default function Proof({ video, isAdmin }) {
       }}>
 
         <h3>📸 Screenshot Proof</h3>
-        <p style={{ color: "#666", fontSize: "14px" }}>
-          Select a time to capture screenshot for this video.
-        </p>
-
-        {/* TIME INPUT */}
-        <div style={{ marginBottom: "10px" }}>
-          <label>Screenshot Time</label>
-          <input
-            type="time"
-            style={{ width: "100%", padding: "10px", marginTop: "5px" }}
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-          />
-        </div>
-
-        {/* BUTTON */}
-        <button
-          onClick={addSchedule}
-          style={{
-            width: "100%",
-            padding: "12px",
-            background: "#6366f1",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer"
-          }}
-        >
-          Schedule Screenshot
-        </button>
-      </div>
+        {isAdmin && (
+         <>
+           <p style={{ color: "#666", fontSize: "14px" }}>
+             Select a time to capture screenshot for this video.
+           </p>
+       
+           <div style={{ marginBottom: "10px" }}>
+             <label>Screenshot Time</label>
+             <input
+               type="time"
+               style={{
+                 width: "100%",
+                 padding: "10px",
+                 marginTop: "5px"
+               }}
+               value={time}
+               onChange={(e) => setTime(e.target.value)}
+             />
+           </div>
+       
+           <button
+                    onClick={addSchedule}
+             style={{
+               width: "100%",
+               padding: "12px",
+               background: "#6366f1",
+               color: "white",
+               border: "none",
+               borderRadius: "8px",
+               cursor: "pointer"
+             }}
+           >
+             Schedule Screenshot
+           </button>
+         </>
+       )}
+       </div> 
 
       {/* 🔥 RESULTS */}
       <div style={{

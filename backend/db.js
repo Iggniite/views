@@ -1,10 +1,10 @@
 import sqlite3 from "sqlite3";
 
-const db = new sqlite3.Database("./views.db");
+const db = new sqlite3.Database("/etc/data/views.db");
 
 db.serialize(() => {
 
-  // ✅ EXISTING TABLES (UNCHANGED)
+  // ✅ Tabeles
   db.run(`CREATE TABLE IF NOT EXISTS videos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     videoId TEXT UNIQUE,

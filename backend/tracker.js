@@ -2,139 +2,159 @@ import db from "./db.js";
 import { getViews } from "./youtube.js";
 import { captureProof } from "./proof.js";
 
+// 🔥 NEW: Prevent overlapping polls
+let isPolling = false;
+
 export function startTracker(io) {
 
   async function pollData() {
 
-    // ✅ CHANGED: fetch status also (IMPORTANT)
-    db.all("SELECT videoId, status FROM videos", async (err, rows) => {
+    // 🔥 NEW: Skip if previous poll still running
+    if (isPolling) {
+      console.log("⏳ Previous poll still running");
+      scheduleNextPoll();
+      return;
+    }
 
-      for (const r of rows) {
+    isPolling = true;
 
-        const videoId = r.videoId;
-        const isActive = r.status === "active"; // 🔥 ADDED
+    try {
 
-        const data = await getViews(videoId);
-        if (!data) continue;
+      // 🔥 FIXED: Only active videos
+      db.all(
+        "SELECT videoId FROM videos WHERE status='active'",
+        async (err, rows) => {
 
-        db.get(
-          "SELECT views FROM views WHERE videoId=? ORDER BY id DESC LIMIT 1",
-          [videoId],
-          async (err, last) => {
+          if (err) {
+            console.error(err);
+            return;
+          }
 
-            const lastViews = last ? last.views : null;
-            const count = lastViews ? data.views - lastViews : 0;
+          for (const r of rows) {
 
-            // =========================
-            // ✅ ORIGINAL TIME (UNCHANGED)
-            // =========================
-            const now = new Date();
-            now.setSeconds(0, 0);
+            const videoId = r.videoId;
 
-            const time = now.toLocaleTimeString("en-IN", {
-              timeZone: "Asia/Kolkata",
-              hour: "numeric",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: true
-            });
+            const data = await getViews(videoId);
+            if (!data) continue;
 
-            // =========================
-            // 🔥 ONLY TRACK IF ACTIVE
-            // =========================
-            if (isActive) { // 🔥 ADDED
+            db.get(
+              "SELECT views FROM views WHERE videoId=? ORDER BY id DESC LIMIT 1",
+              [videoId],
+              async (err, last) => {
 
-              db.run(
-                "INSERT INTO views(videoId,time,views,count) VALUES(?,?,?,?)",
-                [videoId, time, data.views, count]
-              );
+                const lastViews = last ? last.views : null;
+                const count = lastViews ? data.views - lastViews : 0;
 
-              io.emit("viewUpdate", { videoId, time, views: data.views, count });
+                // =========================
+                // ✅ ORIGINAL TIME (UNCHANGED)
+                // =========================
+                const now = new Date();
+                now.setSeconds(0, 0);
 
-            }
+                const time = now.toLocaleTimeString("en-IN", {
+                  timeZone: "Asia/Kolkata",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true
+                });
 
-            // =========================
-            // 🔥 PROOF SYSTEM (ONLY ACTIVE)
-            // =========================
-            if (isActive) { // 🔥 ADDED
+                // =========================
+                // ✅ TRACK VIEWS
+                // =========================
+                db.run(
+                  "INSERT INTO views(videoId,time,views,count) VALUES(?,?,?,?)",
+                  [videoId, time, data.views, count]
+                );
 
-              db.all(
-                "SELECT * FROM proof_schedule WHERE videoId=?",
-                [videoId],
-                async (err, schedules) => {
+                io.emit("viewUpdate", {
+                  videoId,
+                  time,
+                  views: data.views,
+                  count
+                });
 
-                  // ✅ CURRENT IST TIME → MINUTES
-                  const parts = now.toLocaleTimeString("en-IN", {
-                    timeZone: "Asia/Kolkata",
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true
-                  }).split(" ");
+                // =========================
+                // 🔥 PROOF SYSTEM
+                // =========================
+                db.all(
+                  "SELECT * FROM proof_schedule WHERE videoId=?",
+                  [videoId],
+                  async (err, schedules) => {
 
-                  const [t, meridian] = parts;
-                  let [h, m] = t.split(":").map(Number);
+                    const parts = now.toLocaleTimeString("en-IN", {
+                      timeZone: "Asia/Kolkata",
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true
+                    }).split(" ");
 
-                  if (meridian === "PM" && h !== 12) h += 12;
-                  if (meridian === "AM" && h === 12) h = 0;
+                    const [t, meridian] = parts;
+                    let [h, m] = t.split(":").map(Number);
 
-                  const currentMinutes = h * 60 + m;
+                    if (meridian === "PM" && h !== 12) h += 12;
+                    if (meridian === "AM" && h === 12) h = 0;
 
-                  for (const s of schedules) {
+                    const currentMinutes = h * 60 + m;
 
-                    // ✅ Scheduled → minutes
-                    const [timeStr, meridian2] = s.time.split(" ");
-                    let [hours, minutes] = timeStr.split(":").map(Number);
+                    for (const s of schedules) {
 
-                    if (meridian2 === "PM" && hours !== 12) hours += 12;
-                    if (meridian2 === "AM" && hours === 12) hours = 0;
+                      const [timeStr, meridian2] = s.time.split(" ");
+                      let [hours, minutes] = timeStr.split(":").map(Number);
 
-                    const scheduledMinutes = hours * 60 + minutes;
+                      if (meridian2 === "PM" && hours !== 12) hours += 12;
+                      if (meridian2 === "AM" && hours === 12) hours = 0;
 
-                    // ✅ EXACT MATCH
-                    if (currentMinutes === scheduledMinutes) {
+                      const scheduledMinutes = hours * 60 + minutes;
 
-                      console.log("📸 Capturing proof:", videoId, s.time);
+                      if (currentMinutes === scheduledMinutes) {
 
-                      try {
+                        console.log("📸 Capturing proof:", videoId, s.time);
 
-                        const proof = await captureProof(
-                          videoId,
-                          s.time,
-                          data.views
-                        );
+                        try {
 
-                        // ✅ SAVE IMAGE
-                        db.run(
-                          "INSERT INTO proofs(videoId,time,views,imagePath) VALUES(?,?,?,?)",
-                          [videoId, s.time, data.views, proof.filePath]
-                        );
+                          const proof = await captureProof(
+                            videoId,
+                            s.time,
+                            data.views
+                          );
 
-                        // ✅ REMOVE SCHEDULE
-                        db.run(
-                          "DELETE FROM proof_schedule WHERE id=?",
-                          [s.id]
-                        );
+                          db.run(
+                            "INSERT INTO proofs(videoId,time,views,imagePath) VALUES(?,?,?,?)",
+                            [videoId, s.time, data.views, proof.filePath]
+                          );
 
-                        console.log("✅ Proof captured");
+                          db.run(
+                            "DELETE FROM proof_schedule WHERE id=?",
+                            [s.id]
+                          );
 
-                      } catch (e) {
-                        console.error("❌ Proof capture failed:", e);
+                          console.log("✅ Proof captured");
+
+                        } catch (e) {
+                          console.error("❌ Proof capture failed:", e);
+                        }
+
                       }
 
                     }
 
                   }
+                );
 
-                }
-              );
-
-            }
-
+              }
+            );
           }
-        );
-      }
 
-    });
+        }
+      );
+
+    } catch (e) {
+      console.error("Polling error:", e);
+    }
+
+    // 🔥 NEW: Release lock
+    isPolling = false;
 
     scheduleNextPoll();
   }
